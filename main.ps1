@@ -15,7 +15,10 @@ foreach ($server in $data.Servers) {
     New-SFTPSession -ComputerName $server.IP -Credential $CredentialServer -Verbose
 }
 # uname -a
-Invoke-SSHCommand -Command "hostname" -SessionId 0, 1
 # Get-SFTPChildItem -SessionId 0, 1
 # Get-SFTPContent -SessionId 0, 1 -Path  /etc/shells
-Set-SFTPItem -SessionId 0 -Destination /tmp -Path ./README.md -Force
+
+# Set-SFTPItem -SessionId 0 -Destination /tmp -Path ./read_temp.py -Force
+Invoke-SSHCommand -Command "sed -i 's/\r$//' /tmp/read_temp.py" -SessionId 0
+$temp = Invoke-SSHCommand -Command "/tmp/read_temp.py" -SessionId 0
+$temp.Output
