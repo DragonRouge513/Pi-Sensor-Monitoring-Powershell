@@ -25,19 +25,22 @@ foreach ($server in $data.Servers) {
 
     Set-SFTPItem -SessionId $sftpSessionId -Destination /tmp -Path ./read_temp.py -Force
     Set-SFTPItem -SessionId $sftpSessionId -Destination /tmp -Path ./read_hum.py -Force
-    Set-SFTPItem -SessionId $sftpSessionId -Destination /tmp -Path ./read_gpio.py -Force
+    Set-SFTPItem -SessionId $sftpSessionId -Destination /tmp -Path ./read_pres.py -Force
+    # Set-SFTPItem -SessionId $sftpSessionId -Destination /tmp -Path ./read_gpio.py -Force
 
     Invoke-SSHCommand -Command "sed -i 's/\r$//' /tmp/read_temp.py" -SessionId $sshSessionId
     Invoke-SSHCommand -Command "sed -i 's/\r$//' /tmp/read_hum.py" -SessionId $sshSessionId
-    Invoke-SSHCommand -Command "sed -i 's/\r$//' /tmp/read_gpio.py" -SessionId $sshSessionId
+    Invoke-SSHCommand -Command "sed -i 's/\r$//' /tmp/read_pres.py" -SessionId $sshSessionId
+    # Invoke-SSHCommand -Command "sed -i 's/\r$//' /tmp/read_gpio.py" -SessionId $sshSessionId
 
     Invoke-SSHCommand -Command "chmod +x /tmp/read_temp.py" -SessionId $sshSessionId
     Invoke-SSHCommand -Command "chmod +x /tmp/read_hum.py" -SessionId $sshSessionId
-    Invoke-SSHCommand -Command "chmod +x /tmp/read_gpio.py" -SessionId $sshSessionId
+    Invoke-SSHCommand -Command "chmod +x /tmp/read_pres.py" -SessionId $sshSessionId
+    # Invoke-SSHCommand -Command "chmod +x /tmp/read_gpio.py" -SessionId $sshSessionId
 
-    Invoke-SSHCommand -Command "python3 -m venv myenv" -SessionId $sshSessionId
-    Invoke-SSHCommand -Command "source myenv/bin/activate" -SessionId $sshSessionId
-    Invoke-SSHCommand -Command "pip install RPi.GPIO" -SessionId $sshSessionId
+    # Invoke-SSHCommand -Command "python3 -m venv myenv" -SessionId $sshSessionId
+    # Invoke-SSHCommand -Command "source myenv/bin/activate" -SessionId $sshSessionId
+    # Invoke-SSHCommand -Command "pip install RPi.GPIO" -SessionId $sshSessionId
     
 }
 
@@ -73,9 +76,9 @@ function Start-Screen {
         $senseHatWarningLabel.Visible = $false
 
         # GPIO sub-tab
-        $gpioTab = Add-tabPage -tabControl $subTabControl -tabText "GPIO"
+        # $gpioTab = Add-tabPage -tabControl $subTabControl -tabText "GPIO"
         # Table and chart for GPIO
-        $gpioTable = Add-Table -parentControl $gpioTab -tableWidth 700 -tableHeight 300 -tableLocationX 10 -tableLocationY 10
+        # $gpioTable = Add-Table -parentControl $gpioTab -tableWidth 700 -tableHeight 300 -tableLocationX 10 -tableLocationY 10
         # $gpioChart = Add-Chart -parentControl $gpioTab -chartWidth 350 -chartHeight 200 -chartLocationX 370 -chartLocationY 10
 
         # Store references for later updates
@@ -96,37 +99,48 @@ function Start-Screen {
                 $sshSession = Get-SSHSession | Where-Object { $_.Host -eq $server.IP }
                 if ($sshSession) {
                     $sessionId = $sshSession.SessionId
-                    $temp = Invoke-SSHCommand -Command "python3 /tmp/read_temp.py" -SessionId $sessionId
-                    $hum = Invoke-SSHCommand -Command "python3 /tmp/read_hum.py" -SessionId $sessionId
-                    $gpio = Invoke-SSHCommand -Command "python3 /tmp/read_gpio.py" -SessionId $sessionId
+                    $temp = Invoke-SSHCommand -Command "/tmp/read_temp.py" -SessionId $sessionId
+                    $hum = Invoke-SSHCommand -Command "/tmp/read_hum.py" -SessionId $sessionId
+                    $pres = Invoke-SSHCommand -Command "/tmp/read_pres.py" -SessionId $sessionId
+                    # $gpio = Invoke-SSHCommand -Command "python3 /tmp/read_gpio.py" -SessionId $sessionId
 
-                    Write-Information $gpio
+                    # Write-Information $gpio
 
                     $tempValue = [double]($temp.Output | Select-Object -First 1)
                     $humValue = [double]($hum.Output | Select-Object -First 1)
+                    $presValue = [double]($pres.Output | Select-Object -First 1)
+                    # Notification system for out-of-range values using label
                     # Notification system for out-of-range values using label
                     $minTemp = 10
                     $maxTemp = 35
                     $minHum = 20
                     $maxHum = 80
-                    $warningText = ""
+                    $maxPres = 1030
+                    $minPres = 990
+                    $warningText = @()  # Use an array to collect warning messages
                     $hasWarning = $false
+
                     if ($tempValue -lt $minTemp -or $tempValue -gt $maxTemp) {
-                        $warningText += "Temperature ($tempValue°C) is out of range. "
+                        $warningText += "Temperature ($tempValue°C) is out of range."
                         $hasWarning = $true
                     }
                     if ($humValue -lt $minHum -or $humValue -gt $maxHum) {
-                        $warningText += "Humidity ($humValue%) is out of range. "
+                        $warningText += "Humidity ($humValue%) is out of range."
                         $hasWarning = $true
                     }
+                    if ($presValue -lt $minPres -or $presValue -gt $maxPres) {
+                        $warningText += "Pressure ($presValue hPa) is out of range."
+                        $hasWarning = $true
+                    }
+
                     $warningLabel = $warningLabels[$server.Hostname]
-                    if ($tempValue -eq 0 -and $humValue -eq 0) {
+                    if ($tempValue -eq 0 -and $humValue -eq 0 -and $presValue -eq 0) {
                         $warningLabel.Text = ""
                         $warningLabel.Visible = $false
                     }
                     else {
                         if ($hasWarning) {
-                            $warningLabel.Text = $warningText
+                            $warningLabel.Text = [string]::Join(" ", $warningText)  # Join the warning messages into a single string
                             $warningLabel.Visible = $true
                         }
                         else {
@@ -137,7 +151,8 @@ function Start-Screen {
                     $tableData = @(
                         @("Row", "Sensor", "Value"),
                         @("1", "Temp", $tempValue),
-                        @("2", "Humidity", $humValue)
+                        @("2", "Humidity", $humValue),
+                        @("3", "Pressure", $presValue)
                     )
                     Set-Table -table $tables[$server.Hostname].Main -data $tableData -highlightPin ""
 
@@ -151,7 +166,7 @@ function Start-Screen {
                         $dbPiId = $existingPi.PiId | Select-Object -First 1
                     }
                     # Save temperature and humidity to SenseHat table
-                    Add-SenseHat -PiId $dbPiId -Temperature $tempValue -Humidity $humValue -Pressure 0 -OrientationPitch 0 -OrientationRoll 0 -OrientationYaw 0 -AccelX 0 -AccelY 0 -AccelZ 0 -MagX 0 -MagY 0 -MagZ 0
+                    Add-SenseHat -PiId $dbPiId -Temperature $tempValue -Humidity $humValue -Pressure $presValue -OrientationPitch 0 -OrientationRoll 0 -OrientationYaw 0 -AccelX 0 -AccelY 0 -AccelZ 0 -MagX 0 -MagY 0 -MagZ 0
                 }
             }
         })

@@ -2,11 +2,11 @@
 from sense_hat import SenseHat
 
 
-def read_humidity():
+def read_pressure():
     sense = SenseHat()
-    hum = sense.get_humidity()
-    print(f"{hum:.2f}")
+    pres = sense.get_pressure()
+    print(f"{pres:.2f}")
 
 
 if __name__ == "__main__":
-    read_humidity()
+    read_pressure()
