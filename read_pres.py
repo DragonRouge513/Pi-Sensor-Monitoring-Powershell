@@ -2,11 +2,11 @@
 from sense_hat import SenseHat
 
 
-def read_temperature():
+def read_pressure():
     sense = SenseHat()
-    temp = sense.get_temperature()
-    print(f"{temp:.2f}")
+    pres = sense.get_pressure()
+    print(f"{pres:.2f}")
 
 
 if __name__ == "__main__":
-    read_temperature()
+    read_pressure()

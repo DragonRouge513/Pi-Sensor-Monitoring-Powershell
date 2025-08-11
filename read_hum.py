@@ -2,11 +2,11 @@
 from sense_hat import SenseHat
 
 
-def read_temperature():
+def read_humidity():
     sense = SenseHat()
-    temp = sense.get_temperature()
-    print(f"{temp:.2f}")
+    hum = sense.get_humidity()
+    print(f"{hum:.2f}")
 
 
 if __name__ == "__main__":
-    read_temperature()
+    read_humidity()
