@@ -86,7 +86,7 @@ flowchart TD
 
 ## Contributing
 
-Contributions are welcome! Please see the [Wiki](https://github.com/yourusername/Pi-Sensor-Monitoring-Powershell/wiki) for guidelines.
+Contributions are welcome! Please see the [Wiki](https://github.com/DragonRouge513/Pi-Sensor-Monitoring-Powershell/wiki) for guidelines.
 
 ## License
 
