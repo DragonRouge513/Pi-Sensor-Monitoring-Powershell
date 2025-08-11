@@ -1,5 +1,5 @@
 # Pi-Sensor-Monitoring-Powershell
-manage and control all hardware settings of a rasberry pi 4 and there connected hardware (sensor, led, motors, hats, ...)
+Manage and control all hardware settings of a rasberry pi 4 and there connected hardware (sensor, led, motors, hats, ...)
 # Pi-Sensor-Monitoring-Powershell
 
 A cross-platform PowerShell and Python toolkit to manage and control all hardware settings of a Raspberry Pi 4 and its connected hardware (sensors, LEDs, motors, HATs, etc.) remotely via SSH. The project provides a Windows GUI for monitoring, database logging, and real-time control.
@@ -12,6 +12,8 @@ A cross-platform PowerShell and Python toolkit to manage and control all hardwar
 - **Database Logging:** Store sensor data in a local SQLite database.
 - **Windows GUI:** View sensor data, warnings, and control hardware from a user-friendly interface.
 - **Multi-Pi Support:** Manage multiple Raspberry Pi devices from a single dashboard.
+- **Multithreaded:** Uses background jobs and parallel execution to monitor and control multiple Pis and sensors efficiently.
+
 
 ## Project Structure
 
