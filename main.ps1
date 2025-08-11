@@ -32,7 +32,6 @@ foreach ($server in $data.Servers) {
     Set-SFTPItem -SessionId $sftpSessionId -Destination /tmp -Path ./read_compass.py -Force
     Set-SFTPItem -SessionId $sftpSessionId -Destination /tmp -Path ./led_matrix.py -Force
     Set-SFTPItem -SessionId $sftpSessionId -Destination /tmp -Path ./led_matrix_clear.py -Force
-    # Set-SFTPItem -SessionId $sftpSessionId -Destination /tmp -Path ./read_gpio.py -Force
 
     Invoke-SSHCommand -Command "sed -i 's/\r$//' /tmp/read_temp.py" -SessionId $sshSessionId
     Invoke-SSHCommand -Command "sed -i 's/\r$//' /tmp/read_hum.py" -SessionId $sshSessionId
@@ -40,7 +39,6 @@ foreach ($server in $data.Servers) {
     Invoke-SSHCommand -Command "sed -i 's/\r$//' /tmp/read_compass.py" -SessionId $sshSessionId
     Invoke-SSHCommand -Command "sed -i 's/\r$//' /tmp/led_matrix.py" -SessionId $sshSessionId
     Invoke-SSHCommand -Command "sed -i 's/\r$//' /tmp/led_matrix_clear.py" -SessionId $sshSessionId
-    # Invoke-SSHCommand -Command "sed -i 's/\r$//' /tmp/read_gpio.py" -SessionId $sshSessionId
 
     Invoke-SSHCommand -Command "chmod +x /tmp/read_temp.py" -SessionId $sshSessionId
     Invoke-SSHCommand -Command "chmod +x /tmp/read_hum.py" -SessionId $sshSessionId
@@ -48,11 +46,6 @@ foreach ($server in $data.Servers) {
     Invoke-SSHCommand -Command "chmod +x /tmp/read_compass.py" -SessionId $sshSessionId
     Invoke-SSHCommand -Command "chmod +x /tmp/led_matrix.py" -SessionId $sshSessionId
     Invoke-SSHCommand -Command "chmod +x /tmp/led_matrix_clear.py" -SessionId $sshSessionId
-    # Invoke-SSHCommand -Command "chmod +x /tmp/read_gpio.py" -SessionId $sshSessionId
-
-    # Invoke-SSHCommand -Command "python3 -m venv myenv" -SessionId $sshSessionId
-    # Invoke-SSHCommand -Command "source myenv/bin/activate" -SessionId $sshSessionId
-    # Invoke-SSHCommand -Command "pip install RPi.GPIO" -SessionId $sshSessionId
     
 }
 
@@ -76,7 +69,7 @@ function Start-Screen {
         $tab = Add-tabPage -tabControl $tabControl -tabText $server.Hostname
         $tabsPi += $tab
 
-        # Create sub-tab control for SenseHat and GPIO
+        # Create sub-tab control for SenseHat
         $subTabControl = Add-TabControl -parentControl $tab -tabControlWidth 730 -tabControlHeight 600 -tabControlLocationX 5 -tabControlLocationY 5
         # SenseHat sub-tab
         $senseHatTab = Add-tabPage -tabControl $subTabControl -tabText "SenseHat"
@@ -98,12 +91,12 @@ function Start-Screen {
         $senseHatWarningLabel = Add-Label -parentControl $senseHatTab -labelText "" -labelLocationX 10 -labelLocationY 350 -labelWidth 700 -labelHeight 40
         $senseHatWarningLabel.Visible = $false
 
-        $button = Add-Button -parentControl $senseHatTab -buttonText "view led" -buttonLocationX 10 -buttonLocationY 450 -buttonHeight 40 -buttonWidth 100
+        $button = Add-Button -parentControl $senseHatTab -buttonText "view led" -buttonLocationX 50 -buttonLocationY 450 -buttonHeight 40 -buttonWidth 100
         $button.Add_Click({
                 [System.Windows.Forms.MessageBox]::Show("Button clicked! You can add your action here.")
                 Invoke-SSHCommand -Command "/tmp/led_matrix.py" -SessionId 0, 1, 2, 3
             })
-        $button = Add-Button -parentControl $senseHatTab -buttonText "clear led" -buttonLocationX 50 -buttonLocationY 450 -buttonHeight 40 -buttonWidth 100
+        $button = Add-Button -parentControl $senseHatTab -buttonText "clear led" -buttonLocationX 250 -buttonLocationY 450 -buttonHeight 40 -buttonWidth 100
         $button.Add_Click({
                 [System.Windows.Forms.MessageBox]::Show("Button clicked! You can add your action here.")
                 Invoke-SSHCommand -Command "/tmp/led_matrix_clear.py" -SessionId 0, 1, 2, 3

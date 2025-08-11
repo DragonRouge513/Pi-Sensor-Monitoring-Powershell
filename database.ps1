@@ -13,19 +13,6 @@ CREATE TABLE IF NOT EXISTS Pi (
 "@
 Invoke-SQLiteQuery -Connection $conn -Query $createPiTable
 
-# Create GPIO table
-$createGPIOTable = @"
-CREATE TABLE IF NOT EXISTS GPIO (
-	GPIOId INTEGER PRIMARY KEY AUTOINCREMENT,
-	PiId INTEGER,
-	PinNumber INTEGER,
-	Status TEXT,
-	Timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-	FOREIGN KEY (PiId) REFERENCES Pi(PiId)
-);
-"@
-Invoke-SQLiteQuery -Connection $conn -Query $createGPIOTable
-
 # Create SenseHat table (add CompassHeading and GyroPitch, GyroRoll, GyroYaw columns)
 $createSenseHatTable = @"
 CREATE TABLE IF NOT EXISTS SenseHat (
@@ -90,28 +77,6 @@ function Update-Pi {
     )
     $query = "UPDATE Pi SET Hostname = @Hostname, Location = @Location WHERE PiId = @PiId;"
     $params = @{ PiId = $PiId; Hostname = $Hostname; Location = $Location }
-    Invoke-SQLiteQuery -Connection $conn -Query $query -SqlParameters $params
-}
-
-# Function to add GPIO data
-<#
-.SYNOPSIS
-    Adds a new GPIO record to the GPIO table.
-.PARAMETER PiId
-    The ID of the Pi.
-.PARAMETER PinNumber
-    The GPIO pin number.
-.PARAMETER Status
-    The status of the pin (e.g., HIGH/LOW).
-#>
-function Add-GPIO {
-    param(
-        [int]$PiId,
-        [int]$PinNumber,
-        [string]$Status
-    )
-    $query = "INSERT INTO GPIO (PiId, PinNumber, Status) VALUES (@PiId, @PinNumber, @Status);"
-    $params = @{ PiId = $PiId; PinNumber = $PinNumber; Status = $Status }
     Invoke-SQLiteQuery -Connection $conn -Query $query -SqlParameters $params
 }
 
@@ -190,11 +155,9 @@ INSERT INTO SenseHat (
 #>
 function Clear-Database {
     Write-Host "Clearing all tables and resetting ID counters in the database..."
-    Invoke-SQLiteQuery -Connection $conn -Query "DELETE FROM GPIO;"
     Invoke-SQLiteQuery -Connection $conn -Query "DELETE FROM SenseHat;"
     Invoke-SQLiteQuery -Connection $conn -Query "DELETE FROM Pi;"
     # Reset AUTOINCREMENT counters
-    Invoke-SQLiteQuery -Connection $conn -Query "DELETE FROM sqlite_sequence WHERE name IN ('Pi', 'GPIO', 'SenseHat');"
     Write-Host "Database cleared and ID counters reset."
 }
 
@@ -211,10 +174,6 @@ function Test-DatabaseScenario {
     $lastPiId = (Invoke-SQLiteQuery -Connection $conn -Query "SELECT PiId FROM Pi ORDER BY PiId DESC LIMIT 1;").PiId
     Write-Host "Inserted PiId: $lastPiId"
 
-    # Add GPIO data
-    Add-GPIO -PiId $lastPiId -PinNumber 17 -Status "HIGH"
-    Add-GPIO -PiId $lastPiId -PinNumber 18 -Status "LOW"
-
     # Add SenseHat data
     Add-SenseHat -PiId $lastPiId -Temperature 22.5 -Humidity 45.2 -Pressure 1013.1 -OrientationPitch 1.2 -OrientationRoll 0.8 -OrientationYaw 0.5 -AccelX 0.01 -AccelY 0.02 -AccelZ 0.03 -MagX 0.1 -MagY 0.2 -MagZ 0.3
 
@@ -224,9 +183,6 @@ function Test-DatabaseScenario {
     # Print all Pi records
     Write-Host "Pi Table:"
     Invoke-SQLiteQuery -Connection $conn -Query "SELECT * FROM Pi;" | Format-Table
-    # Print all GPIO records
-    Write-Host "GPIO Table:"
-    Invoke-SQLiteQuery -Connection $conn -Query "SELECT * FROM GPIO;" | Format-Table
     # Print all SenseHat records
     Write-Host "SenseHat Table:"
     Invoke-SQLiteQuery -Connection $conn -Query "SELECT * FROM SenseHat;" | Format-Table
