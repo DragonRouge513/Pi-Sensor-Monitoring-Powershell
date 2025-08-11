@@ -16,14 +16,45 @@ A cross-platform PowerShell and Python toolkit to manage and control all hardwar
 ## Project Structure
 
 - `main.ps1` – Main entry point, sets up SSH, transfers scripts, starts GUI and background jobs.
-- `temp2.ps1` – Alternate script for setup and GUI.
 - `screen.ps1` – PowerShell GUI helper functions.
 - `database.ps1` – SQLite database schema and access functions.
 - `data.psd1` – Configuration file for Pi servers and sensor limits.
 - `read_temp.py`, `read_hum.py`, `read_pres.py`, `read_compass.py`, `read_gyro.py`, `read_gpio.py` – Python scripts for sensor readings.
 - `led_matrix.py`, `led_matrix_clear.py` – Python scripts to control the LED matrix.
 - `Sensor.db` – SQLite database file.
-- `.vscode/launch.json` – VSCode debug configuration.
+
+## Architecture Diagram
+
+```mermaid
+flowchart TD
+    A[Windows PC main.ps1] -->|SSH/SFTP| B[Raspberry Pi Python Scripts]
+    A -->|Loads config| C[data.psd1]
+    A -->|Uses| D[screen.ps1 GUI]
+    A -->|Uses| E[database.ps1 SQLite]
+    A -->|Logs data| F[Sensor.db]
+    B -->|Reads sensors| G[read_temp.py, read_hum.py, read_pres.py, read_compass.py, read_gyro.py, read_gpio.py]
+    B -->|Controls LED| H[led_matrix.py, led_matrix_clear.py]
+    D -->|Displays| I[GUI - Windows Forms]
+    E -->|Defines schema for| F
+    C -->|Defines| J[Servers & Limits]
+    
+    subgraph Windows
+        A
+        C
+        D
+        E
+        F
+        I
+        J
+    end
+    
+    subgraph Raspberry_Pi
+        B
+        G
+        H
+    end
+
+```
 
 ## Getting Started
 
