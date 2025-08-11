@@ -26,29 +26,41 @@ CREATE TABLE IF NOT EXISTS GPIO (
 "@
 Invoke-SQLiteQuery -Connection $conn -Query $createGPIOTable
 
-# Create SenseHat table
+# Create SenseHat table (add CompassHeading and GyroPitch, GyroRoll, GyroYaw columns)
 $createSenseHatTable = @"
 CREATE TABLE IF NOT EXISTS SenseHat (
-	SenseHatId INTEGER PRIMARY KEY AUTOINCREMENT,
-	PiId INTEGER,
-	Temperature REAL,
-	Humidity REAL,
-	Pressure REAL,
-	OrientationPitch REAL,
-	OrientationRoll REAL,
-	OrientationYaw REAL,
-	AccelX REAL,
-	AccelY REAL,
-	AccelZ REAL,
-	MagX REAL,
-	MagY REAL,
-	MagZ REAL,
-	Timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-	FOREIGN KEY (PiId) REFERENCES Pi(PiId)
+    SenseHatId INTEGER PRIMARY KEY AUTOINCREMENT,
+    PiId INTEGER,
+    Temperature REAL,
+    Humidity REAL,
+    Pressure REAL,
+    OrientationPitch REAL,
+    OrientationRoll REAL,
+    OrientationYaw REAL,
+    AccelX REAL,
+    AccelY REAL,
+    AccelZ REAL,
+    MagX REAL,
+    MagY REAL,
+    MagZ REAL,
+    CompassHeading REAL,
+    GyroPitch REAL,
+    GyroRoll REAL,
+    GyroYaw REAL,
+    Timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (PiId) REFERENCES Pi(PiId)
 );
 "@
 Invoke-SQLiteQuery -Connection $conn -Query $createSenseHatTable
 # Function to add a new Pi
+<#
+.SYNOPSIS
+    Adds a new Pi record to the Pi table.
+.PARAMETER Hostname
+    The hostname of the Pi.
+.PARAMETER Location
+    The location of the Pi.
+#>
 function Add-Pi {
     param(
         [string]$Hostname,
@@ -60,6 +72,16 @@ function Add-Pi {
 }
 
 # Function to update Pi info
+<#
+.SYNOPSIS
+    Updates an existing Pi record in the Pi table.
+.PARAMETER PiId
+    The ID of the Pi to update.
+.PARAMETER Hostname
+    The new hostname.
+.PARAMETER Location
+    The new location.
+#>
 function Update-Pi {
     param(
         [int]$PiId,
@@ -72,6 +94,16 @@ function Update-Pi {
 }
 
 # Function to add GPIO data
+<#
+.SYNOPSIS
+    Adds a new GPIO record to the GPIO table.
+.PARAMETER PiId
+    The ID of the Pi.
+.PARAMETER PinNumber
+    The GPIO pin number.
+.PARAMETER Status
+    The status of the pin (e.g., HIGH/LOW).
+#>
 function Add-GPIO {
     param(
         [int]$PiId,
@@ -83,7 +115,38 @@ function Add-GPIO {
     Invoke-SQLiteQuery -Connection $conn -Query $query -SqlParameters $params
 }
 
-# Function to add SenseHat data
+<#
+.SYNOPSIS
+    Adds a new SenseHat record to the SenseHat table.
+.PARAMETER PiId
+    The ID of the Pi.
+.PARAMETER Temperature
+    The temperature value.
+.PARAMETER Humidity
+    The humidity value.
+.PARAMETER Pressure
+    The pressure value.
+.PARAMETER OrientationPitch
+    The pitch orientation value.
+.PARAMETER OrientationRoll
+    The roll orientation value.
+.PARAMETER OrientationYaw
+    The yaw orientation value.
+.PARAMETER AccelX
+    The X acceleration value.
+.PARAMETER AccelY
+    The Y acceleration value.
+.PARAMETER AccelZ
+    The Z acceleration value.
+.PARAMETER MagX
+    The X magnetic value.
+.PARAMETER MagY
+    The Y magnetic value.
+.PARAMETER MagZ
+    The Z magnetic value.
+.PARAMETER CompassHeading
+    The compass heading value.
+#>
 function Add-SenseHat {
     param(
         [int]$PiId,
@@ -98,24 +161,33 @@ function Add-SenseHat {
         [double]$AccelZ,
         [double]$MagX,
         [double]$MagY,
-        [double]$MagZ
+        [double]$MagZ,
+        [double]$CompassHeading,
+        [double]$GyroPitch,
+        [double]$GyroRoll,
+        [double]$GyroYaw
     )
     $query = @"
 INSERT INTO SenseHat (
-    PiId, Temperature, Humidity, Pressure, OrientationPitch, OrientationRoll, OrientationYaw,
-    AccelX, AccelY, AccelZ, MagX, MagY, MagZ
+	PiId, Temperature, Humidity, Pressure, OrientationPitch, OrientationRoll, OrientationYaw,
+	AccelX, AccelY, AccelZ, MagX, MagY, MagZ, CompassHeading, GyroPitch, GyroRoll, GyroYaw
 ) VALUES (
-    @PiId, @Temperature, @Humidity, @Pressure, @OrientationPitch, @OrientationRoll, @OrientationYaw,
-    @AccelX, @AccelY, @AccelZ, @MagX, @MagY, @MagZ
+	@PiId, @Temperature, @Humidity, @Pressure, @OrientationPitch, @OrientationRoll, @OrientationYaw,
+	@AccelX, @AccelY, @AccelZ, @MagX, @MagY, @MagZ, @CompassHeading, @GyroPitch, @GyroRoll, @GyroYaw
 );
 "@
     $params = @{ PiId = $PiId; Temperature = $Temperature; Humidity = $Humidity; Pressure = $Pressure;
         OrientationPitch = $OrientationPitch; OrientationRoll = $OrientationRoll; OrientationYaw = $OrientationYaw;
-        AccelX = $AccelX; AccelY = $AccelY; AccelZ = $AccelZ; MagX = $MagX; MagY = $MagY; MagZ = $MagZ 
+        AccelX = $AccelX; AccelY = $AccelY; AccelZ = $AccelZ; MagX = $MagX; MagY = $MagY; MagZ = $MagZ; CompassHeading = $CompassHeading;
+        GyroPitch = $GyroPitch; GyroRoll = $GyroRoll; GyroYaw = $GyroYaw 
     }
     Invoke-SQLiteQuery -Connection $conn -Query $query -SqlParameters $params
 }
 
+<#
+.SYNOPSIS
+    Clears all tables and resets ID counters in the database.
+#>
 function Clear-Database {
     Write-Host "Clearing all tables and resetting ID counters in the database..."
     Invoke-SQLiteQuery -Connection $conn -Query "DELETE FROM GPIO;"
@@ -127,6 +199,10 @@ function Clear-Database {
 }
 
 # Function to run a test scenario
+<#
+.SYNOPSIS
+    Runs a test scenario to demonstrate database operations.
+#>
 function Test-DatabaseScenario {
     Write-Host "--- Test Scenario: Database Operations ---"
     # Add a new Pi
@@ -154,61 +230,4 @@ function Test-DatabaseScenario {
     # Print all SenseHat records
     Write-Host "SenseHat Table:"
     Invoke-SQLiteQuery -Connection $conn -Query "SELECT * FROM SenseHat;" | Format-Table
-}
-
-# Function to update Pi info
-function Update-Pi {
-    param(
-        [int]$PiId,
-        [string]$Hostname,
-        [string]$Location
-    )
-    $query = "UPDATE Pi SET Hostname = @Hostname, Location = @Location WHERE PiId = @PiId;"
-    $params = @{ PiId = $PiId; Hostname = $Hostname; Location = $Location }
-    Invoke-SQLiteQuery -Connection $conn -Query $query -SqlParameters $params
-}
-
-# Function to add GPIO data
-function Add-GPIO {
-    param(
-        [int]$PiId,
-        [int]$PinNumber,
-        [string]$Status
-    )
-    $query = "INSERT INTO GPIO (PiId, PinNumber, Status) VALUES (@PiId, @PinNumber, @Status);"
-    $params = @{ PiId = $PiId; PinNumber = $PinNumber; Status = $Status }
-    Invoke-SQLiteQuery -Connection $conn -Query $query -SqlParameters $params
-}
-
-# Function to add SenseHat data
-function Add-SenseHat {
-    param(
-        [int]$PiId,
-        [double]$Temperature,
-        [double]$Humidity,
-        [double]$Pressure,
-        [double]$OrientationPitch,
-        [double]$OrientationRoll,
-        [double]$OrientationYaw,
-        [double]$AccelX,
-        [double]$AccelY,
-        [double]$AccelZ,
-        [double]$MagX,
-        [double]$MagY,
-        [double]$MagZ
-    )
-    $query = @"
-INSERT INTO SenseHat (
-	PiId, Temperature, Humidity, Pressure, OrientationPitch, OrientationRoll, OrientationYaw,
-	AccelX, AccelY, AccelZ, MagX, MagY, MagZ
-) VALUES (
-	@PiId, @Temperature, @Humidity, @Pressure, @OrientationPitch, @OrientationRoll, @OrientationYaw,
-	@AccelX, @AccelY, @AccelZ, @MagX, @MagY, @MagZ
-);
-"@
-    $params = @{ PiId = $PiId; Temperature = $Temperature; Humidity = $Humidity; Pressure = $Pressure;
-        OrientationPitch = $OrientationPitch; OrientationRoll = $OrientationRoll; OrientationYaw = $OrientationYaw;
-        AccelX = $AccelX; AccelY = $AccelY; AccelZ = $AccelZ; MagX = $MagX; MagY = $MagY; MagZ = $MagZ 
-    }
-    Invoke-SQLiteQuery -Connection $conn -Query $query -SqlParameters $params
 }

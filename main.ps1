@@ -9,6 +9,8 @@ $data = Import-PowerShellDataFile -Path './data.psd1'
 
 $data = Import-PowerShellDataFile -Path './data.psd1'
 Get-SSHSession | Remove-SSHSession
+Get-Job | Stop-Job -ErrorAction SilentlyContinue
+Get-Job | Remove-Job -Force -ErrorAction SilentlyContinue
 Clear-Database
 
 foreach ($server in $data.Servers) {
@@ -27,6 +29,7 @@ foreach ($server in $data.Servers) {
     Set-SFTPItem -SessionId $sftpSessionId -Destination /tmp -Path ./read_temp.py -Force
     Set-SFTPItem -SessionId $sftpSessionId -Destination /tmp -Path ./read_hum.py -Force
     Set-SFTPItem -SessionId $sftpSessionId -Destination /tmp -Path ./read_pres.py -Force
+    Set-SFTPItem -SessionId $sftpSessionId -Destination /tmp -Path ./read_compass.py -Force
     Set-SFTPItem -SessionId $sftpSessionId -Destination /tmp -Path ./led_matrix.py -Force
     Set-SFTPItem -SessionId $sftpSessionId -Destination /tmp -Path ./led_matrix_clear.py -Force
     # Set-SFTPItem -SessionId $sftpSessionId -Destination /tmp -Path ./read_gpio.py -Force
@@ -34,6 +37,7 @@ foreach ($server in $data.Servers) {
     Invoke-SSHCommand -Command "sed -i 's/\r$//' /tmp/read_temp.py" -SessionId $sshSessionId
     Invoke-SSHCommand -Command "sed -i 's/\r$//' /tmp/read_hum.py" -SessionId $sshSessionId
     Invoke-SSHCommand -Command "sed -i 's/\r$//' /tmp/read_pres.py" -SessionId $sshSessionId
+    Invoke-SSHCommand -Command "sed -i 's/\r$//' /tmp/read_compass.py" -SessionId $sshSessionId
     Invoke-SSHCommand -Command "sed -i 's/\r$//' /tmp/led_matrix.py" -SessionId $sshSessionId
     Invoke-SSHCommand -Command "sed -i 's/\r$//' /tmp/led_matrix_clear.py" -SessionId $sshSessionId
     # Invoke-SSHCommand -Command "sed -i 's/\r$//' /tmp/read_gpio.py" -SessionId $sshSessionId
@@ -41,6 +45,7 @@ foreach ($server in $data.Servers) {
     Invoke-SSHCommand -Command "chmod +x /tmp/read_temp.py" -SessionId $sshSessionId
     Invoke-SSHCommand -Command "chmod +x /tmp/read_hum.py" -SessionId $sshSessionId
     Invoke-SSHCommand -Command "chmod +x /tmp/read_pres.py" -SessionId $sshSessionId
+    Invoke-SSHCommand -Command "chmod +x /tmp/read_compass.py" -SessionId $sshSessionId
     Invoke-SSHCommand -Command "chmod +x /tmp/led_matrix.py" -SessionId $sshSessionId
     Invoke-SSHCommand -Command "chmod +x /tmp/led_matrix_clear.py" -SessionId $sshSessionId
     # Invoke-SSHCommand -Command "chmod +x /tmp/read_gpio.py" -SessionId $sshSessionId
@@ -64,7 +69,7 @@ function Start-Screen {
     $tabControl = Add-TabControl -parentControl $form -tabControlWidth 750 -tabControlHeight 800 -tabControlLocationX 10 -tabControlLocationY 40
     $tabsPi = @()
     $tables = @{}
-    $charts = @{}
+    # $charts = @{}
     $warningLabels = @{}
 
     foreach ($server in $data.Servers) {
@@ -83,7 +88,10 @@ function Start-Screen {
             @("Row", "Sensor", "Value"),
             @("1", "Temp", "-"),
             @("2", "Humidity", "-"),
-            @("3", "Pressure", "-")
+            @("3", "Pressure", "-"),
+            @("4", "MagX", "-"),
+            @("5", "MagY", "-"),
+            @("6", "MagZ", "-")
         )
         Set-Table -table $senseHatTable -data $placeholderData -highlightPin ""
 
@@ -163,7 +171,10 @@ function Start-Screen {
                             @("Row", "Sensor", "Value"),
                             @("1", "Temp", $tempValue),
                             @("2", "Humidity", $humValue),
-                            @("3", "Pressure", $presValue)
+                            @("3", "Pressure", $presValue),
+                            @("4", "MagX", $sense.MagX),
+                            @("5", "MagY", $sense.MagY),
+                            @("6", "MagZ", $sense.MagZ)
                         )
                         Set-Table -table $tables[$hostname].Main -data $tableData -highlightPin ""
                     }
@@ -182,10 +193,12 @@ function Start-Screen {
 }
 
 # Background job: fetches sensor data and writes to DB
-if (-not (Get-Job -Name "SensorFetcherJob" -ErrorAction SilentlyContinue)) {
-    Start-Job -Name "SensorFetcherJob" -ScriptBlock {
+Start-Job -Name "SensorFetcherJob" -ScriptBlock {
+    try {
         Import-Module Posh-SSH
         Import-Module PSSQLite
+        # Ensure working directory is correct
+        Set-Location -Path $using:PSScriptRoot
         $data = Import-PowerShellDataFile -Path './data.psd1'
         $database = "./Sensor.db"
         $conn = New-SQLiteConnection -DataSource $database
@@ -235,9 +248,15 @@ INSERT INTO SenseHat (
                 $temp = Invoke-SSHCommand -Command "/tmp/read_temp.py" -SessionId $sshSessionId
                 $hum = Invoke-SSHCommand -Command "/tmp/read_hum.py" -SessionId $sshSessionId
                 $pres = Invoke-SSHCommand -Command "/tmp/read_pres.py" -SessionId $sshSessionId
+                $compas = Invoke-SSHCommand -Command "/tmp/read_compass.py" -SessionId $sshSessionId
                 $tempValue = [double]($temp.Output | Select-Object -First 1)
                 $humValue = [double]($hum.Output | Select-Object -First 1)
                 $presValue = [double]($pres.Output | Select-Object -First 1)
+                $compasOutput = ($compas.Output | Select-Object -First 1)
+                $compasParts = $compasOutput -split '\s+'
+                $compasValueX = [double]$compasParts[0]
+                $compasValueY = [double]$compasParts[1]
+                $compasValueZ = [double]$compasParts[2]
                 $existingPi = Invoke-SQLiteQuery -Connection $conn -Query "SELECT PiId FROM Pi WHERE Hostname = @Hostname;" -SqlParameters @{Hostname = $server.Hostname }
                 if (-not $existingPi) {
                     Add-Pi -Hostname $server.Hostname -Location "Unknown"
@@ -246,14 +265,23 @@ INSERT INTO SenseHat (
                 else {
                     $dbPiId = $existingPi.PiId | Select-Object -First 1
                 }
-                Add-SenseHat -PiId $dbPiId -Temperature $tempValue -Humidity $humValue -Pressure $presValue -OrientationPitch 0 -OrientationRoll 0 -OrientationYaw 0 -AccelX 0 -AccelY 0 -AccelZ 0 -MagX 0 -MagY 0 -MagZ 0
+                Add-SenseHat -PiId $dbPiId -Temperature $tempValue -Humidity $humValue -Pressure $presValue `
+                    -OrientationPitch 0 -OrientationRoll 0 -OrientationYaw 0 `
+                    -AccelX 0 -AccelY 0 -AccelZ 0 `
+                    -MagX $compasValueX -MagY $compasValueY -MagZ $compasValueZ
                 Remove-SSHSession -SessionId $sshSessionId
             }
             Start-Sleep -Seconds 2
         }
     }
+    catch {
+        # Log error to a file for debugging
+        $_ | Out-File -FilePath "$env:TEMP\SensorFetcherJob_error.log" -Append
+    }
 }
-
+# Output job status for debugging
+Start-Sleep -Seconds 1
+Get-Job -Name "SensorFetcherJob" | Format-Table Id, Name, State
 # Load the configuration file
 # $config = Get-Content "$PSScriptRoot/ipConfig.json" | ConvertFrom-Json
 
